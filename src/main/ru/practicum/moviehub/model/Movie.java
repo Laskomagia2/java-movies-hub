@@ -6,6 +6,7 @@ public class Movie {
         this.yearOfRelease = yearOfRelease;
         this.movieId = this.hashCode();
     }
+
     private final String name;
     private final int yearOfRelease;
     private final int movieId;
@@ -13,6 +14,7 @@ public class Movie {
     public String getName() {
         return name;
     }
+
     public int getYearOfRelease() {
         return yearOfRelease;
     }
@@ -30,6 +32,7 @@ public class Movie {
         hash += yearOfRelease;
         return hash;
     }
+
     @Override
     public boolean equals(Object o) {
         if (this == o) return true;
