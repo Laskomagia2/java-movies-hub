@@ -82,6 +82,7 @@ public class BaseHttpHandler extends MoviesHttpHandler {
             errorsHandler.methodNotAllowed(ex);
         }
     }
+
     private String readRequestBody(HttpExchange exchange) throws IOException {
         try (var reader = new BufferedReader(
                 new InputStreamReader(exchange.getRequestBody(), StandardCharsets.UTF_8))) {
@@ -109,6 +110,7 @@ public class BaseHttpHandler extends MoviesHttpHandler {
             errorsHandler.invalidIdFormat(exchange);
         }
     }
+
     private void handleDeleteById(HttpExchange exchange, String path) throws IOException {
         try {
             String idStr = path.substring(path.lastIndexOf("/") + 1);
