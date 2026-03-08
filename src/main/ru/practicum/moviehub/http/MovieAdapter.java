@@ -15,24 +15,25 @@ public class MovieAdapter extends TypeAdapter<Movie> {
             return;
         }
 
-        jw.beginObject();  // Начинаем запись JSON-объекта { ... }
+        jw.beginObject();
 
-        jw.name("name");          // Ключ: "name"
-        jw.value(movie.getName()); // Значение: строка
+        jw.name("name");
+        jw.value(movie.getName());
 
-        jw.name("yearOfRelease");  // Ключ: "yearOfRelease"
-        jw.value(movie.getYearOfRelease()); // Значение: число
+        jw.name("yearOfRelease");
+        jw.value(movie.getYearOfRelease());
 
-        jw.endObject();  // Завершаем объект
+        jw.endObject();
     }
+
     public Movie read(final JsonReader jr) throws IOException {
-        jr.beginObject();  // Начинаем чтение объекта
+        jr.beginObject();
 
         String name = null;
         int yearOfRelease = 0;
 
         while (jr.hasNext()) {
-            String fieldName = jr.nextName();  // Получаем имя поля
+            String fieldName = jr.nextName();
 
             switch (fieldName) {
                 case "name":
@@ -42,14 +43,13 @@ public class MovieAdapter extends TypeAdapter<Movie> {
                     yearOfRelease = jr.nextInt();
                     break;
                 default:
-                    jr.skipValue();  // Пропускаем неизвестные поля
+                    jr.skipValue();
                     break;
             }
         }
 
-        jr.endObject();  // Завершаем чтение объекта
+        jr.endObject();
 
-        // Создаём и возвращаем объект Movie
         return new Movie(name, yearOfRelease);
     }
 }
