@@ -26,5 +26,6 @@ public abstract class MoviesHttpHandler implements HttpHandler {
         // для отправки ответа без тела и кодом 204
         ex.getResponseHeaders().set("Content-Type", CT_JSON);
         ex.sendResponseHeaders(204, -1);
+        ex.getResponseBody().close();
     }
 }

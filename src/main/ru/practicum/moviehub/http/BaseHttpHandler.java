@@ -30,11 +30,13 @@ public class BaseHttpHandler extends MoviesHttpHandler {
 
     public void handle(HttpExchange ex) throws IOException {
         String qery = ex.getRequestURI().getQuery();
-
+        String path = ex.getRequestURI().getPath();
         String method = ex.getRequestMethod();
         if (method.equalsIgnoreCase("GET")) {
-            if (path.matches("/movies/\\d+")) {
+            if (path.matches("/movies/-?\\d+")) {
                 handleGetById(ex, path);
+            } else if (path.equals("/movies") && qery != null && qery.contains("year")) {
+                handleGetMoviesByDate(ex, qery);
             } else if (path.equals("/movies")) {
                 if (moviesStore.getListOfMovies().isEmpty()) {
                     sendJson(ex, 200, "[]");
@@ -42,15 +44,21 @@ public class BaseHttpHandler extends MoviesHttpHandler {
                     String gsonListOfMovies = gsonDefault.toJson(moviesStore.getListOfMovies());
                     sendJson(ex, 200, gsonListOfMovies);
                 }
-            } else if (path.equals("/movie") && qery != null && qery.contains("year")) {
-                handleGetMoviesByDate(ex, qery);
             } else {
                 errorsHandler.methodNotAllowed(ex);
             }
-
+        } else if (method.equalsIgnoreCase("POST")) {
+            if (!path.equals("/movies")) {
+                errorsHandler.methodNotAllowed(ex);
+                return;
+            }
             String requestBody = readRequestBody(ex);
             try {
                 Movie movie = gsonMovieAdapter.fromJson(requestBody, Movie.class);
+                if (movie == null || movie.getName() == null) {
+                    errorsHandler.validationError(ex);
+                    return;
+                }
                 if (movie.getName().length() > 100) {
                     errorsHandler.validationError(ex, "Name should contain less than 100 symbols");
                 } else if (movie.getYearOfRelease() < 1888 || movie.getYearOfRelease() > 2026) {
@@ -61,9 +69,11 @@ public class BaseHttpHandler extends MoviesHttpHandler {
                 }
             } catch (IOException exception) {
                 errorsHandler.validationError(ex);
+            } catch (Exception exception) {
+                errorsHandler.validationError(ex);
             }
         } else if (method.equalsIgnoreCase("DELETE")) {
-            if (path.matches("/movies/\\d+")) {
+            if (path.matches("/movies/-?\\d+")) {
                 handleDeleteById(ex, path);
             } else {
                 errorsHandler.methodNotAllowed(ex);
