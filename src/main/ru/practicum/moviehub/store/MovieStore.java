@@ -11,12 +11,15 @@ public class MovieStore {
     public ArrayList<Movie> getListOfMovies() {
         return new ArrayList<>(listOfMovies.values());
     }
+
     public void addMovie(Movie movie) {
         listOfMovies.put(movie.getMovieId(), movie);
     }
-    public Movie searchMovie(int movieId){
+
+    public Movie searchMovie(int movieId) {
         return listOfMovies.get(movieId);
     }
+
     public boolean removeMovie(int movieId) {
         if (listOfMovies.containsKey(movieId)) {
             listOfMovies.remove(movieId);
@@ -25,6 +28,7 @@ public class MovieStore {
             return false;
         }
     }
+
     public boolean isMovieExist(int movieId) {
         return listOfMovies.containsKey(movieId);
     }

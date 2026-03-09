@@ -5,6 +5,7 @@ import com.sun.net.httpserver.HttpExchange;
 import com.google.gson.Gson;
 import ru.practicum.moviehub.store.MovieStore;
 import ru.practicum.moviehub.model.Movie;
+import ru.practicum.moviehub.api.ErrorsHandler;
 
 import java.io.BufferedReader;
 import java.io.IOException;
@@ -15,63 +16,83 @@ import java.util.List;
 import java.util.Map;
 
 public class BaseHttpHandler extends MoviesHttpHandler {
-    public BaseHttpHandler(MovieStore moviesStore) {
-        this.moviesStore = moviesStore;
-    }
-
-    Gson gsonDefault = new Gson();
-    Gson gsonMovieAdapter = new GsonBuilder()
+    private final Gson gsonDefault = new Gson();
+    private final Gson gsonMovieAdapter = new GsonBuilder()
             .registerTypeAdapter(Movie.class, new MovieAdapter())
             .create();
     private final MovieStore moviesStore;
+    private final ErrorsHandler errorsHandler;
+
+    protected static final String GET_METHOD = "GET";
+    protected static final String POST_METHOD = "POST";
+    protected static final String DELETE_METHOD = "DELETE";
+
+    public BaseHttpHandler(MovieStore moviesStore) {
+        this.moviesStore = moviesStore;
+        this.errorsHandler = new ErrorsHandler(this::sendJson);
+    }
+
     public void handle(HttpExchange ex) throws IOException {
-        String path = ex.getRequestURI().getPath();
         String qery = ex.getRequestURI().getQuery();
-
+        String path = ex.getRequestURI().getPath();
         String method = ex.getRequestMethod();
-        if (method.equalsIgnoreCase("GET")) {
-            if (path.matches("/movies/\\d+")) {
-                handleGetById(ex, path);
-            } else if (path.equals("/movies")) {
-                if (moviesStore.getListOfMovies().isEmpty()) {
-                    sendJson(ex, 200, "[]");
-                } else {
-                    String gsonListOfMovies = gsonDefault.toJson(moviesStore.getListOfMovies());
-                    sendJson(ex, 200, gsonListOfMovies);
-                }
-            } else if (path.equals("/movie") && qery != null && qery.contains("year")) {
-                handleGetMoviesByDate(ex, qery);
-            } else {
-                sendJson(ex, 405, "{\"error\": \"Method not allowed\"}");
-            }
-        } else if (method.equalsIgnoreCase("POST")) {
 
-            String requestBody = readRequestBody(ex);
-            try {
-                Movie movie = gsonMovieAdapter.fromJson(requestBody, Movie.class);
-                if (movie.getName().length() > 100) {
-                    sendJson(ex, 422, "{\"error\": \"Error of validation\", " +
-                            "\"case\": \"Name should contain less than 100 symbols\"}");
-                } else if (movie.getYearOfRelease() < 1888 || movie.getYearOfRelease() > 2026) {
-                    sendJson(ex, 422, "{\"error\": \"Error of validation\", " +
-                            "\"case\": \"Year should be between 1888 and 2026\"}");
+        switch (method.toUpperCase()) {
+            case GET_METHOD:
+                if (path.matches("/movies/-?\\d+")) {
+                    handleGetById(ex, path);
+                } else if (path.equals("/movies") && qery != null && qery.contains("year")) {
+                    handleGetMoviesByDate(ex, qery);
+                } else if (path.equals("/movies")) {
+                    if (moviesStore.getListOfMovies().isEmpty()) {
+                        sendJson(ex, 200, "[]");
+                    } else {
+                        String gsonListOfMovies = gsonDefault.toJson(moviesStore.getListOfMovies());
+                        sendJson(ex, 200, gsonListOfMovies);
+                    }
                 } else {
-                    moviesStore.addMovie(movie);
-                    sendJson(ex, 201, gsonMovieAdapter.toJson(movie));
+                    errorsHandler.methodNotAllowed(ex);
                 }
-            } catch (IOException exception) {
-                sendJson(ex, 422, "{\"error\": \"Error of validation\"}");
-            }
-        } else if (method.equalsIgnoreCase("DELETE")) {
-            if (path.matches("/movies/\\d+")) {
-                handleDeleteById(ex, path);
-            } else {
-                sendJson(ex, 405, "{\"error\": \"Method not allowed\"}");
-            }
-        } else {
-            sendJson(ex, 405, "{\"error\": \"Method not allowed\"}");
+                break;
+            case POST_METHOD:
+                if (!path.equals("/movies")) {
+                    errorsHandler.methodNotAllowed(ex);
+                    return;
+                }
+                String requestBody = readRequestBody(ex);
+                try {
+                    Movie movie = gsonMovieAdapter.fromJson(requestBody, Movie.class);
+                    if (movie == null || movie.getName() == null) {
+                        errorsHandler.validationError(ex);
+                        return;
+                    }
+                    if (movie.getName().length() > 100) {
+                        errorsHandler.validationError(ex, "Name should contain less than 100 symbols");
+                    } else if (movie.getYearOfRelease() < 1888 || movie.getYearOfRelease() > 2026) {
+                        errorsHandler.validationError(ex, "Year should be between 1888 and 2026");
+                    } else {
+                        moviesStore.addMovie(movie);
+                        sendJson(ex, 201, gsonMovieAdapter.toJson(movie));
+                    }
+                    break;
+                } catch (IOException exception) {
+                    errorsHandler.validationError(ex);
+                } catch (Exception exception) {
+                    errorsHandler.validationError(ex);
+                }
+            case DELETE_METHOD:
+                if (path.matches("/movies/-?\\d+")) {
+                    handleDeleteById(ex, path);
+                } else {
+                    errorsHandler.methodNotAllowed(ex);
+                }
+                break;
+            default:
+                errorsHandler.methodNotAllowed(ex);
+                break;
         }
     }
+
     private String readRequestBody(HttpExchange exchange) throws IOException {
         try (var reader = new BufferedReader(
                 new InputStreamReader(exchange.getRequestBody(), StandardCharsets.UTF_8))) {
@@ -91,14 +112,15 @@ public class BaseHttpHandler extends MoviesHttpHandler {
             int id = Integer.parseInt(idStr);
             Movie movie = moviesStore.searchMovie(id);
             if (movie == null) {
-                sendJson(exchange, 404, "{\"error\": \"Movie not found\"}");
+                errorsHandler.movieNotFound(exchange);
                 return;
             }
             sendJson(exchange, 200, gsonMovieAdapter.toJson(movie));
         } catch (NumberFormatException e) {
-            sendJson(exchange, 400, "{\"error\": \"Invalid ID format\"}");
+            errorsHandler.invalidIdFormat(exchange);
         }
     }
+
     private void handleDeleteById(HttpExchange exchange, String path) throws IOException {
         try {
             String idStr = path.substring(path.lastIndexOf("/") + 1);
@@ -106,17 +128,17 @@ public class BaseHttpHandler extends MoviesHttpHandler {
             if (moviesStore.removeMovie(id)) {
                 sendNoContent(exchange);
             } else {
-                sendJson(exchange, 404, "{\"error\": \"Movie not found\"}");
+                errorsHandler.movieNotFound(exchange);
             }
         } catch (NumberFormatException e) {
-            sendJson(exchange, 400, "{\"error\": \"Invalid ID format\"}");
+            errorsHandler.invalidIdFormat(exchange);
         }
     }
 
     private void handleGetMoviesByDate(HttpExchange ex, String query) throws IOException {
         Map<String, String> params = parseQuery(query);
         if (params.get("year") == null || params.get("year").trim().isEmpty()) {
-            sendJson(ex, 400, "{\"error\": \"Parametr 'year' is required\"}");
+            errorsHandler.yearRequired(ex);
             return;
         }
         try {
@@ -129,7 +151,7 @@ public class BaseHttpHandler extends MoviesHttpHandler {
             String json = gsonDefault.toJson(result);
             sendJson(ex, 200, json);
         } catch (NumberFormatException e) {
-            sendJson(ex, 400, "{\"error\": \"Parametr 'year' must be a number\"}");
+            errorsHandler.yearMustBeNumber(ex);
         }
     }
 

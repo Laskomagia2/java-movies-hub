@@ -8,7 +8,7 @@ import java.io.OutputStream;
 import java.nio.charset.StandardCharsets;
 
 public abstract class MoviesHttpHandler implements HttpHandler {
-    protected static final String CT_JSON = "application/json; charset=UTF-8"; // !!! Укажите содержимое заголовка Content-Type
+    protected static final String CT_JSON = "application/json; charset=UTF-8";
 
     protected void sendJson(HttpExchange ex, int status, String json) throws IOException {
         // !!! Реализуйте общий для всех хендлеров метод
@@ -26,5 +26,6 @@ public abstract class MoviesHttpHandler implements HttpHandler {
         // для отправки ответа без тела и кодом 204
         ex.getResponseHeaders().set("Content-Type", CT_JSON);
         ex.sendResponseHeaders(204, -1);
+        ex.getResponseBody().close();
     }
 }

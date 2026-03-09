@@ -112,14 +112,14 @@ public class MoviesApiTest {
     @Order(4)
     void getMoviesByYear_returnsOnlyMoviesOfThatYear() throws Exception {
         HttpRequest req = HttpRequest.newBuilder()
-                .uri(URI.create(BASE + "/movie?year=" + testMovie.getYearOfRelease()))
+                .uri(URI.create(BASE + "/movies?year=" + testMovie.getYearOfRelease()))
                 .GET()
                 .build();
 
         HttpResponse<String> resp =
                 client.send(req, HttpResponse.BodyHandlers.ofString(StandardCharsets.UTF_8));
 
-        assertEquals(200, resp.statusCode(), "GET /movie?year=... должен вернуть 200");
+        assertEquals(200, resp.statusCode(), "GET /movies?year=... должен вернуть 200");
 
         var listType = new TypeToken<java.util.List<Movie>>() {}.getType();
         java.util.List<Movie> movies = gsonDefault.fromJson(resp.body(), listType);
