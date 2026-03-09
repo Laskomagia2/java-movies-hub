@@ -36,7 +36,8 @@ public class BaseHttpHandler extends MoviesHttpHandler {
         String qery = ex.getRequestURI().getQuery();
         String path = ex.getRequestURI().getPath();
         String method = ex.getRequestMethod();
-        switch (method.toUpperCase()){
+
+        switch (method.toUpperCase()) {
             case GET_METHOD:
                 if (path.matches("/movies/-?\\d+")) {
                     handleGetById(ex, path);
